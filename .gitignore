@@ -1,0 +1,8 @@
+# 개인 데이터(설정·기록·로그) - 절대 올리지 않는다
+data/
+.venv/
+__pycache__/
+*.pyc
+_work/
+.DS_Store
+

@@ -1,0 +1,5 @@
+playwright>=1.40
+keyring>=24
+notion-client>=3.1,<4
+requests>=2.31
+tzdata; sys_platform == "win32"
