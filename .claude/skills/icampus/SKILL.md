@@ -31,7 +31,9 @@ description: 성균관대 icampus(Canvas) 트래커 설치·설정·업데이트
 ### 1단계: 환경 준비
 
 1. OS를 확인한다(`uname` 또는 `ver`). Mac/윈도우가 아니면 지원하지 않는다고 말하고 멈춘다.
-2. 저장소가 없으면 clone한다: `git clone <저장소 주소> ~/icampus-share`. git이 없으면 윈도우는 `winget install Git.Git`, Mac은 `xcode-select --install`을 안내한다.
+2. 저장소가 없으면 받는다. **git이 있으면** `git clone https://github.com/Elgolnana/icampus-share ~/icampus-share`. **git이 없으면 git을 설치하라고 하지 말고** 압축으로 받는다(git 설치는 몇 분 걸리고 처음 쓰는 사람이 여기서 많이 그만둔다).
+   - Mac: `curl -L -o /tmp/icampus.zip https://github.com/Elgolnana/icampus-share/archive/refs/heads/main.zip && unzip -q /tmp/icampus.zip -d /tmp/icampus-new && mv /tmp/icampus-new/icampus-share-main ~/icampus-share`
+   - 윈도우(PowerShell): `Invoke-WebRequest https://github.com/Elgolnana/icampus-share/archive/refs/heads/main.zip -OutFile $env:TEMP\icampus.zip; Expand-Archive $env:TEMP\icampus.zip $env:TEMP\icampus-new -Force; Move-Item $env:TEMP\icampus-new\icampus-share-main $env:USERPROFILE\icampus-share`
 3. Python 3.10 이상을 찾는다.
    - Mac: `python3 --version`. 없거나 낮으면 python.org 설치 파일(3.12)을 안내한다.
    - 윈도우: **`python` 말고 `py -3 --version`을 쓴다.** `python`은 Microsoft Store로 연결되는 가짜 명령일 수 있다. `py`가 없으면 python.org 설치 파일을 안내하면서 **"Add python.exe to PATH" 체크**를 강조하고, 설치 후 새 터미널에서 다시 확인한다.
@@ -112,13 +114,25 @@ description: 성균관대 icampus(Canvas) 트래커 설치·설정·업데이트
 
 ## B. 업데이트 ("업데이트해줘")
 
-1. `cd $REPO && git pull`
-2. `$PY -m pip install -r requirements.txt`
-3. `$PY -m playwright install chromium`
-4. `$PY scripts/doctor.py`
-5. 무엇이 바뀌었는지 `git log --oneline -5`로 짧게 알려준다.
+먼저 `$REPO/.git` 폴더가 있는지 본다. 어느 쪽이든 **`data/`(설정·기록)와 `.venv/`(설치된 부품)는 절대 건드리지 않는다.**
 
-`git pull`이 충돌하면 사용자가 코드를 고친 경우다. 어떤 파일인지 보여주고, 사용자 동의를 받은 뒤에만 `git stash`를 한다.
+**git으로 받은 경우** (`.git` 있음)
+1. `cd $REPO && git stash` (사용자가 코드를 고쳤으면 잠깐 치워 둔다. 고친 게 없으면 아무 일도 안 일어난다)
+2. `git pull`
+3. 1번에서 치운 게 있으면 `git stash pop`. 새 버전과 부딪히면 어느 파일이 왜 부딪혔는지 쉽게 설명하고, 사용자가 고친 의도를 살려서 Claude가 합친다.
+4. 바뀐 점은 `git log --oneline -5`로 짧게 알려준다.
+
+**압축으로 받은 경우** (`.git` 없음)
+1. `data/내가_고친_것.md`가 있으면 먼저 읽는다. 새 코드로 덮어쓰면 고친 부분이 사라지니, 덮어쓴 뒤 그 내용을 새 코드에 다시 적용한다.
+2. 새 압축을 받아 풀고, `data/`와 `.venv/`만 빼고 덮어쓴다.
+   - Mac: `curl -L -o /tmp/icampus.zip https://github.com/Elgolnana/icampus-share/archive/refs/heads/main.zip && rm -rf /tmp/icampus-new && unzip -q /tmp/icampus.zip -d /tmp/icampus-new && rsync -a --exclude /data --exclude /.venv /tmp/icampus-new/icampus-share-main/ $REPO/`
+   - 윈도우(PowerShell): `Invoke-WebRequest https://github.com/Elgolnana/icampus-share/archive/refs/heads/main.zip -OutFile $env:TEMP\icampus.zip; Remove-Item $env:TEMP\icampus-new -Recurse -ErrorAction SilentlyContinue; Expand-Archive $env:TEMP\icampus.zip $env:TEMP\icampus-new; robocopy $env:TEMP\icampus-new\icampus-share-main $REPO /E /XD data .venv`
+3. 바뀐 점은 README와 SKILL.md를 보고 짧게 알려준다.
+
+**그다음 공통**
+1. `$PY -m pip install -r requirements.txt`
+2. `$PY -m playwright install chromium`
+3. `$PY scripts/doctor.py`
 
 ## C. 설정 바꾸기
 
@@ -139,7 +153,7 @@ description: 성균관대 icampus(Canvas) 트래커 설치·설정·업데이트
 
 1. `data/logs/`의 가장 최근 로그를 읽는다.
 2. `$PY scripts/doctor.py --login`을 실행한다.
-3. 아래 표에서 코드를 찾아 처리한다. 표에 없으면 로그의 에러를 보고 원인을 찾되, **학교 사이트 구조가 바뀐 경우**(셀렉터를 못 찾음, iframe 없음 등)는 사용자 컴퓨터에서 코드를 고치지 말고 "학교 사이트가 바뀐 것 같아요. 만든 사람에게 알려주거나 며칠 뒤 '업데이트해줘'를 해 보세요"라고 안내한다. 로컬에서 고친 코드는 나중에 업데이트할 때 충돌한다.
+3. 아래 표에서 코드를 찾아 처리한다. 표에 없으면 로그의 에러를 보고 원인을 찾는다. **학교 사이트 구조가 바뀐 경우**(셀렉터를 못 찾음, iframe 없음 등)는 먼저 "업데이트해줘"로 이미 고쳐진 버전이 있는지 확인하고, 없으면 사용자 동의를 받아 **코드를 직접 고쳐도 된다.** 고쳤으면 아래 "코드를 고칠 때" 규칙을 따른다.
 
 | 코드 | 원인 | 해결 |
 |---|---|---|
@@ -153,9 +167,17 @@ description: 성균관대 icampus(Canvas) 트래커 설치·설정·업데이트
 | DOWNLOAD_ROOT | 폴더 권한 없음 | 다른 위치로 `configure.py --root` |
 | ONEDRIVE | OneDrive 안 | OneDrive 밖 경로를 권하고, 원하면 `--root` 변경 |
 | COURSE_FOLDER | 연결한 폴더가 없어짐 | 새 위치로 `--map` 또는 `--unmap` |
-| (로그) '…탭을 열었지만 내용을 읽지 못함' | 그 탭이 이 프로그램이 모르는 구조(옛 LearningX 등) | 사용자에게 그 탭은 직접 확인하라고 안내하고, 탭 이름을 만든 사람에게 알려 달라고 한다. 코드를 고치지 않는다 |
+| (로그) '…탭을 열었지만 내용을 읽지 못함' | 그 탭이 이 프로그램이 모르는 구조(옛 LearningX 등) | 사용자에게 그 탭은 직접 확인하라고 안내한다. 사용자가 원하면 그 탭을 읽도록 코드를 고쳐도 된다(아래 "코드를 고칠 때") |
 | NOTION_TOKEN | 토큰 없음·폐기됨 | `set_secrets.py --notion` |
 | NOTION_DB | 표가 지워짐·연결 끊김·열 이름 바뀜 | 메시지대로: 열 이름이면 원래대로 돌리게 안내, 접근 불가면 페이지 ••• → 연결 확인, 표를 지웠으면 `setup_notion.py --force` |
+
+### 코드를 고칠 때
+
+이 저장소는 MIT 라이선스라 사용자 컴퓨터에서 코드를 고쳐도 된다(다른 학교에 맞추기, 안 되는 탭 고치기 등). 대신 업데이트 때 고친 게 사라지지 않게 이것만 지킨다.
+
+1. 고치기 전에 무엇을 왜 고치는지 사용자에게 한 줄로 말하고 동의를 받는다.
+2. 고친 뒤 `data/내가_고친_것.md`에 **날짜, 파일, 무엇을 왜 바꿨는지**를 적는다. `data/`는 업데이트 때 덮어쓰지 않으니, 업데이트 뒤 이 기록을 보고 다시 적용할 수 있다.
+3. 다른 사람에게도 쓸모 있는 수정(학교 사이트가 바뀜 등)이면 만든 사람에게 알려 달라고 권한다.
 
 자주 묻는 것:
 - **"노션에 아무것도 안 떠요"**: 첫 실행에서는 안 끝난 것만 올라간다. 정말 다가오는 과제가 있는데 없다면 로그에서 '노션 기록 실패'를 찾는다.
